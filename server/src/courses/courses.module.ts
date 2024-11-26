@@ -1,12 +1,16 @@
 import { Module } from '@nestjs/common';
 import { CoursesService } from './courses.service';
 import { CoursesController } from './courses.controller';
-import { TypeOrmModule } from '@nestjs/typeorm';
-import { Course } from './entities/course.entity';
+import { CourseSchema } from './entities/course.entity';
 import { CoursesRepository } from './courses.repository';
+import { KafkaModule } from 'src/kafka/kafka.module';
+import { MongooseModule } from '@nestjs/mongoose';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Course])],
+  imports: [
+    MongooseModule.forFeature([{ name: 'Course', schema: CourseSchema }]),
+    KafkaModule,
+  ],
   providers: [CoursesService, CoursesRepository],
   controllers: [CoursesController],
 })

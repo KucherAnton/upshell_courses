@@ -2,43 +2,35 @@ import {
   Controller,
   Get,
   Post,
-  Body,
   Param,
-  Patch,
-  Delete,
+  NotFoundException,
 } from '@nestjs/common';
 import { CoursesService } from './courses.service';
-import { CreateCourseDto } from './dtos/create-course.dto';
-import { UpdateCourseDto } from './dtos/update-course.dto';
 import { ApiTags } from '@nestjs/swagger';
+import { Course } from './entities/course.entity';
 
 @ApiTags('Courses')
-@Controller('courses')
+@Controller('api/v1/users/:user_id/courses')
 export class CoursesController {
   constructor(private readonly coursesService: CoursesService) {}
 
-  @Post()
-  create(@Body() createCourseDto: CreateCourseDto) {
-    return this.coursesService.create(createCourseDto);
-  }
-
-  @Get()
-  findAll() {
-    return this.coursesService.findAll();
-  }
-
   @Get(':url')
-  findOne(@Param('url') url: string) {
-    return this.coursesService.findOne(url);
+  async getCourseInfo(
+    @Param('user_id') user_id: string,
+    @Param('course_name_url') url: string,
+  ) {
+    const course = await this.coursesService.getCourseInfo(url);
+    if (!course) {
+      throw new NotFoundException('Course not found');
+    }
+    return course;
   }
 
-  @Patch(':url')
-  update(@Param('url') url: string, @Body() updateCourseDto: UpdateCourseDto) {
-    return this.coursesService.update(url, updateCourseDto);
-  }
-
-  @Delete(':url')
-  remove(@Param('url') url: string) {
-    return this.coursesService.remove(url);
+  @Post(':course_name_url/start')
+  async startCourse(
+    @Param('user_id') user_id: string,
+    @Param('course_name_url') url: string,
+  ): Promise<Course> {
+    return this.coursesService.startCourse(url, user_id);
   }
 }

@@ -1,37 +1,48 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { CreateCourseDto } from './dtos/create-course.dto';
-import { UpdateCourseDto } from './dtos/update-course.dto';
+import { Injectable } from '@nestjs/common';
 import { CoursesRepository } from './courses.repository';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Course } from './entities/course.entity';
+import { KafkaService } from 'src/kafka/kafka.service';
 
 @Injectable()
 export class CoursesService {
-  constructor(private readonly coursesRepository: CoursesRepository) {}
+  constructor(
+    private coursesRepository: CoursesRepository,
+    private kafkaService: KafkaService,
+  ) {}
 
-  async create(createCourseDto: CreateCourseDto) {
-    const course = this.coursesRepository.create(createCourseDto);
-    return this.coursesRepository.save(course);
-  }
-
-  async findAll() {
-    return this.coursesRepository.find();
-  }
-
-  async findOne(url: string) {
-    const course = await this.coursesRepository.findByUrl(url);
+  async getCourseInfo(url: string): Promise<Course | null> {
+    let course = this.coursesRepository.findByCourseUrl(url);
     if (!course) {
-      throw new NotFoundException(`Course with url "${url}" not found`);
+      throw new Error('Курс не найден');
     }
     return course;
   }
 
-  async update(url: string, updateCourseDto: UpdateCourseDto) {
-    const course = await this.findOne(url);
-    Object.assign(course, updateCourseDto);
-    return this.coursesRepository.save(course);
-  }
+  async startCourse(url: string, user_id: string): Promise<Course> {
+    const course = await this.coursesRepository.findByCourseUrl(url);
 
-  async remove(url: string) {
-    const course = await this.findOne(url);
-    return this.coursesRepository.remove(course);
+    if (!course) {
+      throw new Error(`Курс с URL ${url} не найден`);
+    }
+
+    const updatedCourse =
+      await this.coursesRepository.updateCourseStatusToInProgress(course.id);
+
+    try {
+      await this.kafkaService.publishMessage(
+        'course_started',
+        JSON.stringify({
+          user_id,
+          course_id: updatedCourse.id,
+          course_name: updatedCourse.name,
+        }),
+      );
+    } catch (error) {
+      console.error('Ошибка при публикации события в Kafka:', error);
+      throw new Error('Ошибка при публикации события в Kafka');
+    }
+
+    return updatedCourse;
   }
 }
