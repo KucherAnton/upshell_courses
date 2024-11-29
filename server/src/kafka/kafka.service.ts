@@ -8,8 +8,9 @@ export class KafkaService implements OnModuleInit {
   constructor(@Inject('KAFKA_SERVICE') private readonly client: ClientKafka) {}
 
   onModuleInit() {
-    this.client.subscribeToResponseOf('course-start');
-    this.client.connect();
+    // this.client.subscribeToResponseOf('course-start');
+    // this.client.connect();
+    console.log('kafka working');
   }
 
   async publishMessage(topic: string, message: string) {
